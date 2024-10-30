@@ -1,0 +1,53 @@
+flowchart TD
+  subgraph variables_Legend [Variables]
+    direction LR
+    buildConfiguration[buildConfiguration: Release]
+    wwwrootDir[wwwrootDir: Tailspin.SpaceGame.Web/wwwroot]
+    dotnetSdkVersion[dotnetSdkVersion: 6.x]
+  end
+    0_UseNETSDKdotnetSdkVersion[Task: Use NET SDK dotnetSdkVersion]
+    1_Runnpminstall[Task: Run npm install]
+    0_UseNETSDKdotnetSdkVersion --> 1_Runnpminstall
+    2_CompileSassassets[Script: Compile Sass assets]
+    1_Runnpminstall --> 2_CompileSassassets
+    3_Rungulptasks[Task: Run gulp tasks]
+    2_CompileSassassets --> 3_Rungulptasks
+    4_Writebuildinfo[Script: Write build info]
+    3_Rungulptasks --> 4_Writebuildinfo
+    5_Restoreprojectdependencies[Task: Restore project dependencies]
+    4_Writebuildinfo --> 5_Restoreprojectdependencies
+    subgraph 6_buildyml [Template: build.yml]
+  subgraph 6_buildyml_parameters_Legend [Parameters]
+    direction LR
+    6_buildyml_buildConfiguration[buildConfiguration: Debug]
+  end
+    6_buildyml_0_Buildtheproject-Debug[Task: Build the project  Debug]
+    6_buildyml_1_Publishtheproject-Debug[Task: Publish the project  Debug]
+    6_buildyml_0_Buildtheproject-Debug --> 6_buildyml_1_Publishtheproject-Debug
+    end
+
+    5_Restoreprojectdependencies --> |buildConfiguration: Debug| 6_buildyml
+    subgraph 7_buildyml [Template: build.yml]
+  subgraph 7_buildyml_parameters_Legend [Parameters]
+    direction LR
+    7_buildyml_buildConfiguration[buildConfiguration: Release]
+  end
+    7_buildyml_0_Buildtheproject-Release[Task: Build the project  Release]
+    7_buildyml_1_Publishtheproject-Release[Task: Publish the project  Release]
+    7_buildyml_0_Buildtheproject-Release --> 7_buildyml_1_Publishtheproject-Release
+    end
+
+    6_buildyml --> |buildConfiguration: Release| 7_buildyml
+    subgraph 8_buildyml [Template: build.yml]
+  subgraph 8_buildyml_parameters_Legend [Parameters]
+    direction LR
+    8_buildyml_buildConfiguration[buildConfiguration: Release]
+  end
+    8_buildyml_0_Buildtheproject-Release[Task: Build the project  Release]
+    8_buildyml_1_Publishtheproject-Release[Task: Publish the project  Release]
+    8_buildyml_0_Buildtheproject-Release --> 8_buildyml_1_Publishtheproject-Release
+    end
+
+    7_buildyml --> 8_buildyml
+    9_PublishArtifactdrop[Task: Publish Artifact drop]
+    8_buildyml --> 9_PublishArtifactdrop
