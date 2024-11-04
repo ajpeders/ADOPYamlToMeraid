@@ -1,56 +1,126 @@
 trigger:
-- '*'
-
-pool:
-  vmImage: ubuntu-latest
-
-# variables:
-#   buildConfiguration: 'Release'
-#   wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
-#   dotnetSdkVersion: '6.x'
+  branches:
+    include:
+      - master
+      - develop
+      - feature/*
 
 variables:
-- name: 'buildConfiguration'
-  value: 'Release'
+  - name: buildConfiguration
+    value: 'Release'
+  - name: buildPlatform
+    value: 'Any CPU'
 
+parameters:
+  - name: environment
+    displayName: 'Deployment Environment'
+    type: string
+    default: 'development'
+    values:
+      - development
+      - staging
+      - production
 
-steps:
-- task: UseDotNet@2
-  displayName: 'Use .NET SDK $(dotnetSdkVersion)'
-  inputs:
-    version: '$(dotnetSdkVersion)'
+stages:
+  - stage: Build
+    displayName: 'Build Stage'
+    jobs:
+      - job: BuildJob
+        displayName: 'Build Project'
+        pool:
+          vmImage: 'windows-latest'
+        steps:
+          - template: templates/build.yml
+            parameters:
+              buildConfiguration: '$(buildConfiguration)'        
+          - task: NuGetToolInstaller@1
+          - task: NuGetCommand@2
+            inputs:
+              restoreSolution: '**/*.sln'
+          - task: VSBuild@1
+            inputs:
+              solution: '**/*.sln'
+              platform: '$(buildPlatform)'
+              configuration: '$(buildConfiguration)'
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'drop'
 
-- task: Npm@1
-  displayName: 'Run npm install'
-  inputs:
-    verbose: false
+  - stage: Test
+    displayName: 'Test Stage'
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: TestJob
+        displayName: 'Run Unit Tests'
+        pool:
+          vmImage: 'windows-latest'
+        steps:
+          - task: VSTest@2
+            inputs:
+              testSelector: 'testAssemblies'
+              testAssemblyVer2: |
+                **\*test*.dll
+                !**\obj\**
 
-- script: './node_modules/.bin/node-sass $(wwwrootDir) --output $(wwwrootDir)'
-  displayName: 'Compile Sass assets'
+  - stage: Deploy
+    displayName: 'Deploy Stage'
+    dependsOn: Test
+    condition: succeeded()
+    jobs:
+      - deployment: DeployJob
+        displayName: 'Deploy to $(environment)'
+        environment: '$(environment)'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureResourceManagerTemplateDeployment@3
+                  inputs:
+                    deploymentScope: 'Subscription'
+                    azureResourceManagerConnection: 'AzureRM'
+                    location: '$(location)'
+                    csmFile: '$(System.DefaultWorkingDirectory)/templates/azuredeploy.json'
+                    csmParametersFile: '$(System.DefaultWorkingDirectory)/templates/azuredeploy.$(environment).parameters.json'
+                    deploymentMode: 'Incremental'
 
-- task: gulp@1
-  displayName: 'Run gulp tasks'
-
-- script: 'echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt'
-  displayName: 'Write build info'
-  workingDirectory: $(wwwrootDir)
-
-- task: DotNetCoreCLI@2
-  displayName: 'Restore project dependencies'
-  inputs:
-    command: 'restore'
-    projects: '**/*.csproj'
-
-# - template: templates/build.yml
-#   parameters:
-#     buildConfiguration: 'Debug'
-
-# - template: templates/build.yml
-#   parameters:
-#     buildConfiguration: 'Release'
-
-# - template: templates/build.yml
-
-- task: PublishBuildArtifacts@1
-  displayName: 'Publish Artifact: drop'
-  condition: succeeded()
+  - stage: PostDeployment
+    displayName: 'Post-Deployment Stage'
+    dependsOn: Deploy
+    condition: succeeded()
+    jobs:
+      - job: PostDeployJob
+        displayName: 'Run Post-Deployment Tasks'
+        steps:
+          - script: echo 'Running post-deployment tasks...'
+          - task: Bash@3
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "Cleaning up temporary resources"
+                # Add cleanup scripts here
+                      - job: NotificationJob
+      - job: NotificationJob
+        displayName: 'Send Deployment Notifications'
+        steps:
+          - task: SendGrid@1
+            inputs:
+              from: 'devops@company.com'
+              to: 'team@company.com'
+              subject: 'Deployment to $(environment) Completed'
+              text: 'The deployment pipeline has completed for environment: $(environment).'
+  - stage: Notifications
+    displayName: 'Notifications Stage'
+    dependsOn: PostDeployment
+    condition: always()
+    jobs:
+      - job: NotificationJob
+        displayName: 'Send Deployment Notifications'
+        steps:
+          - task: SendGrid@1
+            inputs:
+              from: 'devops@company.com'
+              to: 'team@company.com'
+              subject: 'Deployment to $(environment) Completed'
+              text: 'The deployment pipeline has completed for environment: $(environment).'
