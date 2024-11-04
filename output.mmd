@@ -1,0 +1,140 @@
+flowchart LR
+	subgraph PL_4_Notifications_Stage["stage: Notifications Stage"]
+	direction LR
+		subgraph PL_4_Notifications_Stage_0_Send_Deployment_Notifications["job: Send Deployment Notifications"]
+		direction LR
+			PL_4_Notifications_Stage_0_Send_Deployment_Notifications_0_SendGrid1["task: SendGrid@1"]
+			subgraph PL_4_Notifications_Stage_0_Send_Deployment_Notifications_Parameters_legend ["Parameters"]
+				direction LR
+				PL_4_Notifications_Stage_0_Send_Deployment_Notifications_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+			end
+		end
+		subgraph PL_4_Notifications_Stage_Variables_legend ["Variables"]
+			direction LR
+			PL_4_Notifications_Stage_Variables_legend_0_buildConfiguration["buildConfiguration : Release"]
+			PL_4_Notifications_Stage_Variables_legend_1_buildPlatform["buildPlatform : Any CPU"]
+		end
+		subgraph PL_4_Notifications_Stage_Parameters_legend ["Parameters"]
+			direction LR
+			PL_4_Notifications_Stage_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+		end
+	end
+	subgraph PL_3_PostDeployment_Stage["stage: Post-Deployment Stage"]
+	direction LR
+		subgraph PL_3_PostDeployment_Stage_1_Send_Deployment_Notifications["job: Send Deployment Notifications"]
+		direction LR
+			PL_3_PostDeployment_Stage_1_Send_Deployment_Notifications_0_SendGrid1["task: SendGrid@1"]
+			subgraph PL_3_PostDeployment_Stage_1_Send_Deployment_Notifications_Parameters_legend ["Parameters"]
+				direction LR
+				PL_3_PostDeployment_Stage_1_Send_Deployment_Notifications_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+			end
+		end
+		subgraph PL_3_PostDeployment_Stage_0_Run_PostDeployment_Tasks["job: Run Post-Deployment Tasks"]
+		direction LR
+			PL_3_PostDeployment_Stage_0_Run_PostDeployment_Tasks_0_echo_Running_postdeployment_tasks["script: echo 'Running post-deployment tasks...'"]
+			PL_3_PostDeployment_Stage_0_Run_PostDeployment_Tasks_1_Bash3["task: Bash@3"]
+			PL_3_PostDeployment_Stage_0_Run_PostDeployment_Tasks_0_echo_Running_postdeployment_tasks --> PL_3_PostDeployment_Stage_0_Run_PostDeployment_Tasks_1_Bash3
+			subgraph PL_3_PostDeployment_Stage_0_Run_PostDeployment_Tasks_Parameters_legend ["Parameters"]
+				direction LR
+				PL_3_PostDeployment_Stage_0_Run_PostDeployment_Tasks_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+			end
+		end
+		subgraph PL_3_PostDeployment_Stage_Variables_legend ["Variables"]
+			direction LR
+			PL_3_PostDeployment_Stage_Variables_legend_0_buildConfiguration["buildConfiguration : Release"]
+			PL_3_PostDeployment_Stage_Variables_legend_1_buildPlatform["buildPlatform : Any CPU"]
+		end
+		subgraph PL_3_PostDeployment_Stage_Parameters_legend ["Parameters"]
+			direction LR
+			PL_3_PostDeployment_Stage_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+		end
+	end
+	subgraph PL_2_Deploy_Stage["stage: Deploy Stage"]
+	direction LR
+		subgraph PL_2_Deploy_Stage_0_Deploy_to_environment["job: Deploy to $(environment)"]
+		direction LR
+			subgraph PL_2_Deploy_Stage_0_Deploy_to_environment_Parameters_legend ["Parameters"]
+				direction LR
+				PL_2_Deploy_Stage_0_Deploy_to_environment_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+			end
+		end
+		subgraph PL_2_Deploy_Stage_Variables_legend ["Variables"]
+			direction LR
+			PL_2_Deploy_Stage_Variables_legend_0_buildConfiguration["buildConfiguration : Release"]
+			PL_2_Deploy_Stage_Variables_legend_1_buildPlatform["buildPlatform : Any CPU"]
+		end
+		subgraph PL_2_Deploy_Stage_Parameters_legend ["Parameters"]
+			direction LR
+			PL_2_Deploy_Stage_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+		end
+	end
+	subgraph PL_1_Test_Stage["stage: Test Stage"]
+	direction LR
+		subgraph PL_1_Test_Stage_0_Run_Unit_Tests["job: Run Unit Tests"]
+		direction LR
+			PL_1_Test_Stage_0_Run_Unit_Tests_0_VSTest2["task: VSTest@2"]
+			subgraph PL_1_Test_Stage_0_Run_Unit_Tests_Parameters_legend ["Parameters"]
+				direction LR
+				PL_1_Test_Stage_0_Run_Unit_Tests_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+			end
+		end
+		subgraph PL_1_Test_Stage_Variables_legend ["Variables"]
+			direction LR
+			PL_1_Test_Stage_Variables_legend_0_buildConfiguration["buildConfiguration : Release"]
+			PL_1_Test_Stage_Variables_legend_1_buildPlatform["buildPlatform : Any CPU"]
+		end
+		subgraph PL_1_Test_Stage_Parameters_legend ["Parameters"]
+			direction LR
+			PL_1_Test_Stage_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+		end
+	end
+	subgraph PL_0_Build_Stage["stage: Build Stage"]
+	direction LR
+		subgraph PL_0_Build_Stage_0_Build_Project["job: Build Project"]
+		direction LR
+			subgraph PL_0_Build_Stage_0_Build_Project_0_templatesbuildyml["Template: templates/build.yml"]
+				PL_0_Build_Stage_0_Build_Project_0_templatesbuildyml_JB_0_Build_the_project__buildConfiguration["task: Build the project - $(buildConfiguration)"]
+				PL_0_Build_Stage_0_Build_Project_0_templatesbuildyml_JB_1_Publish_the_project__buildConfiguration["task: Publish the project - $(buildConfiguration)"]
+				PL_0_Build_Stage_0_Build_Project_0_templatesbuildyml_JB_0_Build_the_project__buildConfiguration --> PL_0_Build_Stage_0_Build_Project_0_templatesbuildyml_JB_1_Publish_the_project__buildConfiguration
+				subgraph PL_0_Build_Stage_0_Build_Project_0_templatesbuildyml_JB_Parameters_legend ["Parameters"]
+					direction LR
+					PL_0_Build_Stage_0_Build_Project_0_templatesbuildyml_JB_Parameters_legend_0_buildConfiguration["buildConfiguration : $(buildConfiguration)"]
+				end
+			end
+
+			PL_0_Build_Stage_0_Build_Project_1_NuGetToolInstaller1["task: NuGetToolInstaller@1"]
+			PL_0_Build_Stage_0_Build_Project_2_NuGetCommand2["task: NuGetCommand@2"]
+			PL_0_Build_Stage_0_Build_Project_3_VSBuild1["task: VSBuild@1"]
+			PL_0_Build_Stage_0_Build_Project_4_PublishBuildArtifacts1["task: PublishBuildArtifacts@1"]
+			PL_0_Build_Stage_0_Build_Project_0_templatesbuildyml --> PL_0_Build_Stage_0_Build_Project_1_NuGetToolInstaller1
+			PL_0_Build_Stage_0_Build_Project_1_NuGetToolInstaller1 --> PL_0_Build_Stage_0_Build_Project_2_NuGetCommand2
+			PL_0_Build_Stage_0_Build_Project_2_NuGetCommand2 --> PL_0_Build_Stage_0_Build_Project_3_VSBuild1
+			PL_0_Build_Stage_0_Build_Project_3_VSBuild1 --> PL_0_Build_Stage_0_Build_Project_4_PublishBuildArtifacts1
+			subgraph PL_0_Build_Stage_0_Build_Project_Parameters_legend ["Parameters"]
+				direction LR
+				PL_0_Build_Stage_0_Build_Project_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+			end
+		end
+		subgraph PL_0_Build_Stage_Variables_legend ["Variables"]
+			direction LR
+			PL_0_Build_Stage_Variables_legend_0_buildConfiguration["buildConfiguration : Release"]
+			PL_0_Build_Stage_Variables_legend_1_buildPlatform["buildPlatform : Any CPU"]
+		end
+		subgraph PL_0_Build_Stage_Parameters_legend ["Parameters"]
+			direction LR
+			PL_0_Build_Stage_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+		end
+	end
+PL_0_Build_Stage --> PL_1_Test_Stage
+PL_1_Test_Stage --> PL_2_Deploy_Stage
+PL_2_Deploy_Stage --> PL_3_PostDeployment_Stage
+PL_3_PostDeployment_Stage --> PL_4_Notifications_Stage
+	subgraph PL_Variables_legend ["Variables"]
+		direction LR
+		PL_Variables_legend_0_buildConfiguration["buildConfiguration : Release"]
+		PL_Variables_legend_1_buildPlatform["buildPlatform : Any CPU"]
+	end
+	subgraph PL_Parameters_legend ["Parameters"]
+		direction LR
+		PL_Parameters_legend_0_Deployment_Environment["Deployment Environment : development"]
+	end
