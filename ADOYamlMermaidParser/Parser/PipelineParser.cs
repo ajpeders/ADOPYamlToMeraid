@@ -1,73 +1,79 @@
-using ADOYamlMermaidParser.Model.Step;
+using ADOYamlMermaidParser.Model;
 
 namespace ADOYamlMermaidParser.Parser;
 
 public class PipelineParser : Parser
 {
-    public List<Parser> Instructions { get; set;}
-    public PipelineParser(Dictionary<string, object> pipeline, string prefix)
+    List<Parser> Stages { get; set; } = [];
+    public PipelineParser(Dictionary<object,object> pipeline, 
+                            string prefix, 
+                            int depth,
+                            List<ADOParameter>? parameters = null)
     {
-        base.Yaml = pipeline;
-        string name = Yaml.TryGetValue("`name", out object? value) ? (string)value : "";
-        base.DisplayName = "PL"+name;
-        base.MermaidId = Helpers.GetMermaidId(prefix, DisplayName);
-        Instructions = GetInstructions();
+        Type = "pipeline";
+        Obj = pipeline;
+        Depth = depth;
+        Variables = ParserHelper.GetVariables(pipeline);
+        Parameters = ParserHelper.UpdateParameters(ParserHelper.GetParameters(pipeline), parameters ?? []);
+        DisplayName = ParserHelper.GetDisplayName(Type, Obj, Variables, Parameters);
+        MermaidId = ParserHelper.GetMermaidId(prefix, DisplayName);
+        SetStages();
     }
 
-    public List<Dictionary<string,object>>? GetSteps()
+    public void SetStages()
     {
-        var steps = Yaml.ContainsKey("steps") ? Yaml["steps"] : null;
-        if(steps is null)
+        Stages = [];
+        if(Obj == null || !Obj.TryGetValue("stages", out var stages))
         {
-            return null;
+            return;
         }
-        if(steps is List<object> objSteps)
+        if(stages is not List<object> stageList)
         {
-            return objSteps
-                .Where(s => s is Dictionary<object,object>)
-                .Select(Helpers.FormatYamlDictionary)
-                .ToList();
+            return;
         }
-        return null;
+        for(int i = 0; i < stageList.Count; i++)
+        {
+            if(stageList[i] is Dictionary<object,object> stageDict)
+            {
+                var newParser = ParserFactory.CreateParser("stage", stageDict, $"{MermaidId}_{i}", Depth+1, Variables, Parameters);
+                Stages.Add(newParser);
+            }
+            else
+            {
+                var erroredParser = new ErroredParser(new(), $"{MermaidId}_{i}", Depth+1,  $"Stage is not a dict in {MermaidId}");
+                Stages.Add(erroredParser);
+            }
+        }
     }
-
-    public List<Parser> GetInstructions()
-    {
-        var steps = GetSteps();
-        Instructions = new();
-        for(int i = 0; i < steps.Count(); i++)
-        {
-            Instructions.Add(ParserFactory.CreateParser("step", steps[i], MermaidId+"_i"));
-        }
-        return Instructions;   
-    }
-
     public override string Parse()
     {
-        string mermaid_output = string.Empty;
-        Parser? prev_ins = null; 
-        for(int i = 0; i < Instructions.Count(); i++)
+        string mermaidOutput = string.Empty;
+        string tabs = new string('\t', Depth);
+        for(int i = 0; i < Stages.Count; i++)
         {
-            var ins = Instructions[i];
-            mermaid_output += ins.Parse()+'\n';
-            if(prev_ins != null)
+            var stage = Stages[Stages.Count - 1 - i];
+            mermaidOutput += $"{tabs}subgraph {stage.MermaidId}[\"stage: {stage.DisplayName}\"]\n";
+            mermaidOutput += $"{tabs}direction LR\n";
+            mermaidOutput += stage.Parse();
+            mermaidOutput += $"{tabs}end\n";
+        }
+
+        Parser? prev_stage = null;
+        for(int i = 0; i < Stages.Count; i++)
+        {
+            var stage = Stages[i];
+            if(prev_stage != null)
             {
-                mermaid_output += $"{prev_ins.MermaidId} --> {ins.MermaidId}\n";
+                mermaidOutput += $"{prev_stage.MermaidId} --> {stage.MermaidId}\n";
             }
-            prev_ins = ins;
-        } 
-        return mermaid_output;
-    }
+            prev_stage = stage;
+        }
 
-    /*
-    if(pipeline is PipelineImpJobDef impJobPl)
-    {
-
+          // Add legend.
+        var varDict = Variables.ToDictionary(v => v.Name ?? string.Empty, v => v.Value ?? string.Empty);
+        mermaidOutput += ParserHelper.GetLegendMermaidStr(MermaidId, "Variables", varDict, Depth);
+        var paramDict = Parameters.ToDictionary(p => p.DisplayName ?? p.Name ?? string.Empty, p => (string)(p.Default ?? string.Empty));
+        mermaidOutput += ParserHelper.GetLegendMermaidStr(MermaidId, "Parameters", paramDict , Depth);
+        return mermaidOutput;    
     }
-    else
-    {
-        DisplayName = "PL";
-        MermaidId = Helpers.GetMermaidId(prefix, DisplayName);
-    }
-}*/
 }
